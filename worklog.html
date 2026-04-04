@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>工作日志 - 只读静态快照</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif; }
+        body { background: #f4f7fc; margin: 0; padding: 24px 20px; color: #1e2a3a; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 28px; box-shadow: 0 12px 30px rgba(0,0,0,0.08); overflow: hidden; padding: 24px 28px; }
+        h1 { font-size: 1.9rem; font-weight: 600; margin: 0 0 6px 0; background: linear-gradient(135deg, #2c3e66, #1a4c6e); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .sub { color: #5a6e7c; border-left: 4px solid #2c7da0; padding-left: 14px; margin-bottom: 28px; font-size: 0.9rem; }
+        .view-tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #e2edf2; }
+        .tab-btn { background: none; border: none; padding: 10px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; color: #5f7f92; border-radius: 30px; }
+        .tab-btn.active { color: #2c7da0; background: #e9f3f8; }
+        .status-filter-tabs { display: flex; gap: 12px; margin-bottom: 20px; padding-left: 4px; }
+        .status-tab { background: #f0f4f8; border: none; padding: 6px 18px; border-radius: 30px; font-weight: 500; cursor: pointer; color: #2c5a74; }
+        .status-tab.active-status { background: #2c7da0; color: white; }
+        .view-pane { display: none; animation: fade 0.2s ease; }
+        .view-pane.active-pane { display: block; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 30px; }
+        .cal-weekday { text-align: center; font-weight: 600; padding: 12px 5px; background: #eef3f7; border-radius: 20px; font-size: 0.85rem; color: #1f5068; }
+        .cal-day { background: white; border: 1px solid #e2edf2; border-radius: 18px; padding: 12px 6px; min-height: 95px; cursor: pointer; transition: 0.1s; text-align: center; }
+        .cal-day:hover { background: #f5fafd; transform: scale(0.98); border-color: #2c7da0; }
+        .cal-day.selected { background: #e0f0f7; border: 2px solid #2c7da0; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .day-number { font-weight: 600; font-size: 1rem; margin-bottom: 6px; }
+        .event-badge { background: #2c7da0; color: white; border-radius: 30px; font-size: 0.7rem; padding: 3px 8px; display: inline-block; margin-top: 5px; font-weight: 500; }
+        .event-list-small { font-size: 0.7rem; margin-top: 6px; color: #2c5a74; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .selected-date-section { background: #f9fbfd; border-radius: 24px; padding: 16px 20px; margin-top: 8px; border: 1px solid #dce9f0; }
+        .event-item { background: white; border-radius: 18px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 5px solid #2c7da0; display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; }
+        .event-info { flex: 1; }
+        .event-name { font-weight: 700; font-size: 1rem; }
+        .event-meta { font-size: 0.75rem; color: #5e7e92; margin-top: 5px; display: flex; flex-wrap: wrap; gap: 12px; }
+        .timeline-group { margin-bottom: 32px; background: #fefefe; border-radius: 24px; border: 1px solid #e2edf2; overflow: hidden; }
+        .group-title { background: #e9f3f8; padding: 14px 20px; font-weight: 700; font-size: 1.2rem; border-bottom: 2px solid #cbdde6; color: #1a4c6e; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .group-stats { font-size: 0.85rem; font-weight: normal; background: #d9e6ef; padding: 4px 12px; border-radius: 40px; }
+        .timeline-item { padding: 16px 20px; border-bottom: 1px solid #ecf3f7; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+        .timeline-item:last-child { border-bottom: none; }
+        .timeline-detail { flex: 1; }
+        .timeline-datetime { font-size: 0.8rem; font-weight: 600; color: #2c7da0; margin-bottom: 6px; }
+        .empty-tip { text-align: center; padding: 40px; color: #6f8ea0; font-style: italic; }
+        footer { margin-top: 30px; text-align: center; font-size: 0.7rem; color: #8aaec0; }
+        @media (max-width: 750px) { .container { padding: 16px; } .cal-day { min-height: 70px; padding: 6px 3px; } .event-meta { flex-direction: column; gap: 4px; } }
+        .btn-secondary { background: #eef3f7; border: 1px solid #cbdde6; padding: 8px 18px; border-radius: 40px; font-weight: 500; cursor: pointer; color: #1f5068; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📋 工作日志快照</h1>
+    <div class="sub">快照时间: 2026/4/4 10:35:10</div>
+    <div class="view-tabs">
+        <button class="tab-btn active" data-view="calendar">📅 日历视图</button>
+        <button class="tab-btn" data-view="timeline">🔄 事件视图</button>
+    </div>
+    <div id="calendarPane" class="view-pane active-pane">
+        <div class="calendar-header">
+            <button class="btn-secondary" id="prevMonthBtn">◀ 上月</button>
+            <h3 id="monthYearDisplay" style="margin:0; font-weight:600;"></h3>
+            <button class="btn-secondary" id="nextMonthBtn">下月 ▶</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="selected-date-section" id="selectedDatePanel">
+            <h4 id="selectedDateTitle" style="margin:0 0 12px 0;">📅 选中日期事件</h4>
+            <div id="dayEventsList">暂无事件，点击日历日期查看详情</div>
+        </div>
+    </div>
+    <div id="timelinePane" class="view-pane">
+        <div class="status-filter-tabs">
+            <button class="status-tab active-status" data-status-filter="ongoing">🟢 进行中</button>
+            <button class="status-tab" data-status-filter="completed">✅ 已完成</button>
+        </div>
+        <div id="timelineContainer"></div>
+    </div>
+    <footer>📄 快照时间: 2026/4/4 10:35:10</footer>
+</div>
+<script>
+    const STATIC_EVENTS = [{"id":1775269259016,"name":"比赛：网络技术挑战赛","datetime":"2026-04-04T10:20","location":"家","content":"正式启动"},{"id":1775269280082,"name":"比赛：计算机设计大赛","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269300214,"name":"比赛：大创","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269343151,"name":"论文：东莞充电站利用率","datetime":"2026-04-04T10:22","location":"家","content":"正式启动"},{"id":1775270091895,"name":"论文：东莞充电站利用率","datetime":"2026-04-05T10:00","location":"家","content":"修改论文"}];
+    const STATIC_STATUSES = {"比赛：网络技术挑战赛":"ongoing","比赛：计算机设计大赛":"ongoing","比赛：大创":"ongoing","论文：东莞充电站利用率":"ongoing"};
+    let events = STATIC_EVENTS;
+    let eventStatuses = STATIC_STATUSES;
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    let selectedDateStr = new Date().toISOString().slice(0,10);
+    let currentStatusFilter = 'ongoing';
+
+    function formatDateTime(dt) { return dt ? dt.replace('T',' ').slice(0,16) : ''; }
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m) { if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    function getEventsByDate(dateStr) { return events.filter(ev => ev.datetime && ev.datetime.slice(0,10) === dateStr); }
+    function getEventsInMonth(year, month) {
+        const start = new Date(year, month, 1), end = new Date(year, month+1, 0);
+        const startStr = start.toISOString().slice(0,10), endStr = end.toISOString().slice(0,10);
+        return events.filter(ev => ev.datetime && ev.datetime.slice(0,10) >= startStr && ev.datetime.slice(0,10) <= endStr);
+    }
+    function getEventRecords(name) { return events.filter(ev => ev.name === name).sort((a,b)=> a.datetime.localeCompare(b.datetime)); }
+    function computeEventDuration(name) {
+        const records = getEventRecords(name);
+        if(!records.length) return 0;
+        const first = records[0].datetime.slice(0,10);
+        const status = eventStatuses[name] || 'ongoing';
+        let end = status === 'completed' ? records[records.length-1].datetime.slice(0,10) : new Date().toISOString().slice(0,10);
+        const diff = Math.ceil((new Date(end) - new Date(first)) / (1000*60*60*24));
+        return diff;
+    }
+    function getEventStatus(name) { return eventStatuses[name] || 'ongoing'; }
+
+    function renderCalendar() {
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const startWeek = firstDay.getDay();
+        const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+        const eventsInMonth = getEventsInMonth(currentYear, currentMonth);
+        const map = new Map();
+        eventsInMonth.forEach(ev => { const d = ev.datetime.slice(0,10); if(!map.has(d)) map.set(d, []); map.get(d).push(ev); });
+        let html = '';
+        ['日','一','二','三','四','五','六'].forEach(d => { html += '<div class="cal-weekday">'+d+'</div>'; });
+        let day = 1;
+        for(let i=0; i<42; i++) {
+            if(i < startWeek || day > daysInMonth) { html += '<div class="cal-day" style="background:#fefcf5; opacity:0.5;"></div>'; continue; }
+            const dateStr = currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+            const dayEvts = map.get(dateStr) || [];
+            const isSelected = (selectedDateStr === dateStr);
+            let preview = '';
+            if(dayEvts.length) {
+                const names = dayEvts.slice(0,2).map(e=>e.name.length>8?e.name.slice(0,6)+'..':e.name).join(', ');
+                preview = '<div class="event-list-small" title="'+dayEvts.map(e=>e.name).join(';')+'">📌 '+names+(dayEvts.length>2? ' +'+(dayEvts.length-2): '')+'</div>';
+            }
+            html += '<div class="cal-day '+ (isSelected ? 'selected' : '') +'" data-date="'+dateStr+'"><div class="day-number">'+day+'</div>'+(dayEvts.length ? '<span class="event-badge">'+dayEvts.length+'</span>' : '')+preview+'</div>';
+            day++;
+        }
+        document.getElementById('calendarGrid').innerHTML = html;
+        document.getElementById('monthYearDisplay').innerText = currentYear+'年 '+(currentMonth+1)+'月';
+        document.querySelectorAll('.cal-day[data-date]').forEach(el => {
+            el.addEventListener('click', () => { selectedDateStr = el.getAttribute('data-date'); renderCalendar(); renderSelectedDayEvents(); });
+        });
+    }
+    function renderSelectedDayEvents() {
+        if(!selectedDateStr) return;
+        const dayEvents = getEventsByDate(selectedDateStr);
+        const container = document.getElementById('dayEventsList');
+        const title = document.getElementById('selectedDateTitle');
+        title.innerHTML = '📅 '+selectedDateStr.replace(/-/g,'/')+'  · 共 '+dayEvents.length+' 件事项';
+        if(!dayEvents.length) { container.innerHTML = '<div class="empty-tip">✨ 当天暂无记录</div>'; return; }
+        const sorted = [...dayEvents].sort((a,b)=>a.datetime.localeCompare(b.datetime));
+        container.innerHTML = sorted.map(ev => '<div class="event-item"><div class="event-info"><div class="event-name">📌 '+escapeHtml(ev.name)+'</div><div class="event-meta"><span>🕒 '+formatDateTime(ev.datetime)+'</span><span>📍 '+escapeHtml(ev.location)+'</span><span>📄 '+escapeHtml(ev.content.length>50?ev.content.slice(0,50)+'…':ev.content)+'</span></div></div></div>').join('');
+    }
+    function renderTimelineView() {
+        const container = document.getElementById('timelineContainer');
+        if(!events.length) { container.innerHTML = '<div class="empty-tip">暂无事件</div>'; return; }
+        const groupMap = new Map();
+        events.forEach(ev => { if(!groupMap.has(ev.name)) groupMap.set(ev.name, []); groupMap.get(ev.name).push(ev); });
+        const filtered = [];
+        for(let [name, list] of groupMap.entries()) {
+            if(getEventStatus(name) === currentStatusFilter) filtered.push({name, list: [...list].sort((a,b)=>a.datetime.localeCompare(b.datetime))});
+        }
+        if(!filtered.length) { container.innerHTML = '<div class="empty-tip">当前状态无事件</div>'; return; }
+        let html = '';
+        filtered.forEach(g => {
+            const duration = computeEventDuration(g.name);
+            const statusText = getEventStatus(g.name)==='ongoing'?'进行中':'已完成';
+            html += '<div class="timeline-group"><div class="group-title"><span>🔹 '+escapeHtml(g.name)+'</span><span class="group-stats">📊 共 '+g.list.length+' 次记录 · 持续 '+duration+' 天 ('+statusText+')</span></div>';
+            g.list.forEach(ev => {
+                html += '<div class="timeline-item"><div class="timeline-detail"><div class="timeline-datetime">📅 '+formatDateTime(ev.datetime)+'  📍 '+escapeHtml(ev.location)+'</div><div><strong>内容：</strong> '+escapeHtml(ev.content)+'</div></div></div>';
+            });
+            html += '</div>';
+        });
+        container.innerHTML = html;
+    }
+    function init() {
+        renderCalendar(); renderSelectedDayEvents(); renderTimelineView();
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.getAttribute('data-view');
+                document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('calendarPane').classList.toggle('active-pane', view==='calendar');
+                document.getElementById('timelinePane').classList.toggle('active-pane', view==='timeline');
+                if(view==='calendar') { renderCalendar(); renderSelectedDayEvents(); }
+                else renderTimelineView();
+            });
+        });
+        document.querySelectorAll('.status-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentStatusFilter = btn.getAttribute('data-status-filter');
+                document.querySelectorAll('.status-tab').forEach(b=>b.classList.remove('active-status'));
+                btn.classList.add('active-status');
+                renderTimelineView();
+            });
+        });
+        document.getElementById('prevMonthBtn').addEventListener('click', () => { let m=currentMonth-1; if(m<0){m=11;currentYear--;} currentMonth=m; renderCalendar(); renderSelectedDayEvents(); });
+        document.getElementById('nextMonthBtn').addEventListener('click', () => { let m=currentMonth+1; if(m>11){m=0;currentYear++;} currentMonth=m; renderCalendar(); renderSelectedDayEvents(); });
+    }
+    init();
+</script>
+</body>
+</html>
