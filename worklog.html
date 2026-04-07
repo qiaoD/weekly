@@ -49,7 +49,7 @@
 <body>
 <div class="container">
     <h1>📋 工作日志快照</h1>
-    <div class="sub">快照时间: 2026/4/4 10:35:10</div>
+    <div class="sub">快照时间: 2026/4/7 14:58:36</div>
     <div class="view-tabs">
         <button class="tab-btn active" data-view="calendar">📅 日历视图</button>
         <button class="tab-btn" data-view="timeline">🔄 事件视图</button>
@@ -73,11 +73,11 @@
         </div>
         <div id="timelineContainer"></div>
     </div>
-    <footer>📄 快照时间: 2026/4/4 10:35:10</footer>
+    <footer>📄 快照时间: 2026/4/7 14:58:36</footer>
 </div>
 <script>
-    const STATIC_EVENTS = [{"id":1775269259016,"name":"比赛：网络技术挑战赛","datetime":"2026-04-04T10:20","location":"家","content":"正式启动"},{"id":1775269280082,"name":"比赛：计算机设计大赛","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269300214,"name":"比赛：大创","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269343151,"name":"论文：东莞充电站利用率","datetime":"2026-04-04T10:22","location":"家","content":"正式启动"},{"id":1775270091895,"name":"论文：东莞充电站利用率","datetime":"2026-04-05T10:00","location":"家","content":"修改论文"}];
-    const STATIC_STATUSES = {"比赛：网络技术挑战赛":"ongoing","比赛：计算机设计大赛":"ongoing","比赛：大创":"ongoing","论文：东莞充电站利用率":"ongoing"};
+    const STATIC_EVENTS = [{"id":1775269259016,"name":"比赛：网络技术挑战赛","datetime":"2026-04-04T10:20","location":"家","content":"正式启动"},{"id":1775269280082,"name":"比赛：计算机设计大赛","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269300214,"name":"比赛：大创","datetime":"2026-04-04T10:21","location":"家","content":"正式启动"},{"id":1775269343151,"name":"论文：东莞充电站利用率","datetime":"2026-04-04T10:22","location":"家","content":"正式启动"},{"id":1775270091895,"name":"论文：东莞充电站利用率","datetime":"2026-04-05T10:00","location":"家","content":"修改论文"},{"id":1775545095188,"name":"论文：共享单车","datetime":"2026-04-07T14:57","location":"家","content":"正式启动"}];
+    const STATIC_STATUSES = {"比赛：网络技术挑战赛":"ongoing","比赛：计算机设计大赛":"ongoing","比赛：大创":"ongoing","论文：东莞充电站利用率":"ongoing","论文：共享单车":"ongoing"};
     let events = STATIC_EVENTS;
     let eventStatuses = STATIC_STATUSES;
     let currentYear = new Date().getFullYear();
@@ -105,18 +105,20 @@
     }
     function getEventStatus(name) { return eventStatuses[name] || 'ongoing'; }
 
+    // 日历渲染（星期一第一列）
     function renderCalendar() {
-        const firstDay = new Date(currentYear, currentMonth, 1);
-        const startWeek = firstDay.getDay();
+        const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+        const originalWeekday = firstDayOfMonth.getDay();
+        const offset = (originalWeekday + 6) % 7;
         const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
         const eventsInMonth = getEventsInMonth(currentYear, currentMonth);
         const map = new Map();
         eventsInMonth.forEach(ev => { const d = ev.datetime.slice(0,10); if(!map.has(d)) map.set(d, []); map.get(d).push(ev); });
         let html = '';
-        ['日','一','二','三','四','五','六'].forEach(d => { html += '<div class="cal-weekday">'+d+'</div>'; });
+        ['一','二','三','四','五','六','日'].forEach(d => { html += '<div class="cal-weekday">'+d+'</div>'; });
         let day = 1;
         for(let i=0; i<42; i++) {
-            if(i < startWeek || day > daysInMonth) { html += '<div class="cal-day" style="background:#fefcf5; opacity:0.5;"></div>'; continue; }
+            if(i < offset || day > daysInMonth) { html += '<div class="cal-day" style="background:#fefcf5; opacity:0.5;"></div>'; continue; }
             const dateStr = currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
             const dayEvts = map.get(dateStr) || [];
             const isSelected = (selectedDateStr === dateStr);
